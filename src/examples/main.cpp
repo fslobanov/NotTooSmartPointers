@@ -11,9 +11,9 @@ int main()
         using namespace ntsp;
 
         {
-            auto s1 = shared_pointer_t< uint64_t >::make( 42 );
+            auto s1 = shared_pointer< uint64_t >::make( 42 );
             auto s2 = std::move( s1 );
-            auto w1 = weak_pointer_t< uint64_t >( s2 );
+            auto w1 = weak_pointer< uint64_t >( s2 );
             auto s3 = w1.lock();
 
             std::clog << "#### " << *s3 << " , " << *s2.get() << std::endl;
@@ -22,8 +22,8 @@ int main()
         {
             auto w1 = []() noexcept
             {
-                auto s1 = shared_pointer_t< int >( new int( 666 ) );
-                auto w1 = weak_pointer_t< int >( s1 );
+                auto s1 = shared_pointer< int >( new int( 666 ) );
+                auto w1 = weak_pointer< int >( s1 );
                 return w1;
             }();
 
@@ -31,11 +31,11 @@ int main()
         }
 
         {
-            auto s1 = shared_pointer_t< int >::make( 1488 );
-            auto s2 = shared_pointer_t< int >::make( 666 );
+            auto s1 = shared_pointer< int >::make( 1488 );
+            auto s2 = shared_pointer< int >::make( 666 );
             s2 = s1;
 
-            auto s3 = shared_pointer_t< int >( new int( 42 ) );
+            auto s3 = shared_pointer< int >( new int( 42 ) );
             s3 = std::move( s2 );
 
             std::clog << "#### " << *s3 << std::endl;
@@ -47,7 +47,7 @@ int main()
         }
 
         {
-            struct Foo : public enable_shared_from_this_t< Foo >
+            struct Foo : public enable_shared_from_this< Foo >
             {
                 explicit Foo( int value ) noexcept : value( value )
                 {
@@ -63,7 +63,7 @@ int main()
             };
 
             auto s1 = make_shared< Foo >( 42 );
-            auto s2 = shared_pointer_t< Foo >( new Foo( 666 ) );
+            auto s2 = shared_pointer< Foo >( new Foo( 666 ) );
             auto s3 = s1->shared_from_this();
             auto w1 = s1->weak_from_this();
 

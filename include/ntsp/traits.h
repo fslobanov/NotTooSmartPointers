@@ -5,13 +5,13 @@
 namespace ntsp {
 
 template< typename Value >
-class weak_pointer_t;
+class weak_pointer;
 
 template< typename Value >
-class shared_pointer_t;
+class shared_pointer;
 
 template< typename Value >
-class enable_shared_from_this_t;
+class enable_shared_from_this;
 
 template< typename All >
 struct is_shared_pointer final : public std::false_type
@@ -19,7 +19,7 @@ struct is_shared_pointer final : public std::false_type
 };
 
 template< typename Value >
-struct is_shared_pointer< shared_pointer_t< Value > > final : std::true_type
+struct is_shared_pointer< shared_pointer< Value > > final : std::true_type
 {
 };
 
@@ -32,7 +32,7 @@ struct is_weak_pointer final : public std::false_type
 };
 
 template< typename Value >
-struct is_weak_pointer< weak_pointer_t< Value > > final : std::true_type
+struct is_weak_pointer< weak_pointer< Value > > final : std::true_type
 {
 };
 
@@ -40,7 +40,7 @@ template < typename Value >
 constexpr auto is_weak_pointer_v = is_weak_pointer< Value >::value;
 
 template< typename Value >
-struct is_enable_shared_from_this final : public std::is_base_of< enable_shared_from_this_t < Value >, Value >
+struct is_enable_shared_from_this final : public std::is_base_of< enable_shared_from_this < Value >, Value >
 {
 };
 

@@ -10,41 +10,41 @@
 namespace ntsp {
 
 template< typename Value >
-class weak_pointer_t;
+class weak_pointer;
 
 template< typename Value >
-class shared_pointer_t;
+class shared_pointer;
 
 template< typename Value >
-class enable_shared_from_this_t;
+class enable_shared_from_this;
 
 template< typename Value, typename ... Args >
-shared_pointer_t< Value > make_shared( Args && ... args );
+shared_pointer< Value > make_shared( Args && ... args );
 
-class reference_counter_t final
+class reference_counter final
 {
     using counter = NTSP_REFERENCE_COUNTER_TYPE;
     static_assert( std::is_integral_v< counter >, "Not an integral" );
 
 private:
     template< typename Value >
-    friend class weak_pointer_t;
+    friend class weak_pointer;
 
     template< typename Value >
-    friend class shared_pointer_t;
+    friend class shared_pointer;
 
     template< typename Value >
-    friend class enable_shared_from_this_t;
+    friend class enable_shared_from_this;
 
     template< typename Value, typename ... Args >
-    friend shared_pointer_t< Value > make_shared( Args && ... args );
+    friend shared_pointer< Value > make_shared( Args && ... args );
 
 private:
     using bottleneck = std::mutex;
     using lock = std::lock_guard< bottleneck >;
 
 private:
-    explicit reference_counter_t( bool monotonicAllocated ) noexcept;
+    explicit reference_counter( bool monotonicAllocated ) noexcept;
 
     [[ nodiscard ]] bool is_monotonic_allocated() const noexcept;
 

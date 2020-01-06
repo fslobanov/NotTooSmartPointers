@@ -1,9 +1,13 @@
 #include "gtest/gtest.h"
-#include "nts
+#include <ntsp/shared_pointer.h>
 
-TEST(example, add)
+using namespace ntsp;
+
+TEST( ntsp, shared_ptr_move )
 {
-    double res;
-    res = add_numbers(1.0, 2.0);
-    ASSERT_NEAR(res, 3.0, 1.0e-11);
+    auto s1 = shared_pointer< uint64_t >::make( 42 );
+    auto s2 = std::move( s1 );
+
+    ASSERT_TRUE( s1.empty() );
+    ASSERT_TRUE( *s2 = 42 );
 }
