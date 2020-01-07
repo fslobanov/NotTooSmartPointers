@@ -2,8 +2,8 @@
 
 #include <cassert>
 
-#include "traits.h"
-#include "reference_counter.h"
+#include <ntsp/traits.h>
+#include <ntsp/reference_counter.h>
 
 namespace ntsp {
 
@@ -30,14 +30,6 @@ public:
         return shared_pointer< value_type >( block, value );
     }
 
-private:
-    explicit shared_pointer( reference_counter * reference_counter, value_type * value ) noexcept
-            : m_reference_counter( reference_counter ), m_value( value )
-    {
-        reference_counter->add_strong();
-        process_shared_from_this( shared_pointer::m_value, this );
-    }
-
 public:
     shared_pointer()
             : m_reference_counter( new reference_counter( false ) ), m_value( nullptr )
@@ -62,7 +54,8 @@ public:
     }
 
     shared_pointer( const shared_pointer & other )
-            : m_reference_counter( other.m_reference_counter ), m_value( other.m_value )
+            : m_reference_counter( other.m_reference_counter )
+            , m_value( other.m_value )
     {
         if( m_reference_counter )
         {
@@ -89,7 +82,8 @@ public:
     }
 
     shared_pointer( shared_pointer && other ) noexcept
-            : m_reference_counter( other.m_reference_counter ), m_value( other.m_value )
+            : m_reference_counter( other.m_reference_counter )
+            , m_value( other.m_value )
     {
         other.m_reference_counter = nullptr;
         other.m_value = nullptr;
@@ -114,12 +108,12 @@ public:
     }
 
 public:
-    [[nodiscard]] value_type * get() const noexcept
+    [[ nodiscard ]] value_type * get() const noexcept
     {
         return m_value;
     }
 
-    [[nodiscard]] bool empty() const noexcept
+    [[ nodiscard ]] bool empty() const noexcept
     {
         return nullptr == m_value;
     }
@@ -140,9 +134,21 @@ public:
         return *m_value;
     }
 
-private:
-    reference_counter * m_reference_counter;
-    value_type * m_value;
+public:
+    [[ nodiscard ]] bool operator ==( const shared_pointer & rhs ) const noexcept
+    {
+        return m_reference_counter == rhs.m_reference_counter;
+    }
+
+    [[ nodiscard ]] bool operator !=( const shared_pointer & rhs ) const noexcept
+    {
+        return !( rhs == *this );
+    }
+
+    [[ nodiscard ]] bool operator <( const shared_pointer & rhs ) const noexcept
+    {
+        return m_reference_counter < rhs.m_reference_counter;
+    }
 
 private:
     friend class weak_pointer< value_type >;
@@ -151,6 +157,19 @@ private:
 
     template< typename V, typename ... Args >
     friend shared_pointer< V > make_shared( Args && ... args );
+
+private:
+    reference_counter * m_reference_counter;
+    value_type * m_value;
+
+private:
+    explicit shared_pointer( reference_counter * reference_counter, value_type * value ) noexcept
+            : m_reference_counter( reference_counter )
+            , m_value( value )
+    {
+        m_reference_counter->add_strong();
+        process_shared_from_this( m_value, this );
+    }
 
 private:
     void delete_counter_and_value()

@@ -26,18 +26,7 @@ class reference_counter final
     using counter = NTSP_REFERENCE_COUNTER_TYPE;
     static_assert( std::is_integral_v< counter >, "Not an integral" );
 
-private:
-    template< typename Value >
-    friend class weak_pointer;
 
-    template< typename Value >
-    friend class shared_pointer;
-
-    template< typename Value >
-    friend class enable_shared_from_this;
-
-    template< typename Value, typename ... Args >
-    friend shared_pointer< Value > make_shared( Args && ... args );
 
 private:
     using bottleneck = std::mutex;
@@ -60,15 +49,28 @@ private:
     [[ nodiscard ]] state_e test_weak() const noexcept;
 
 private:
+    template< typename Value >
+    friend class weak_pointer;
+
+    template< typename Value >
+    friend class shared_pointer;
+
+    template< typename Value >
+    friend class enable_shared_from_this;
+
+    template< typename Value, typename ... Args >
+    friend shared_pointer< Value > make_shared( Args && ... args );
+
+private:
+    counter m_strong;
+    counter m_weak;
+    const bool m_monotonic_allocated;
+    mutable bottleneck m_bottleneck;
+
+private:
     [[ nodiscard ]] state_e remove_and_test_empty( counter & counter ) noexcept;
     void add( counter & counter ) noexcept;
     [[ nodiscard ]] state_e test( const counter & counter ) const noexcept;
-
-private:
-    counter strong;
-    counter weak;
-    const bool monotonicAllocated;
-    mutable bottleneck mutex;
 };
 
 }

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "traits.h"
-#include "reference_counter.h"
+#include <ntsp/shared_pointer.h>
 
 namespace ntsp {
 

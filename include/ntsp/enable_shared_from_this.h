@@ -1,17 +1,13 @@
 #pragma once
 
-#include "weak_pointer.h"
+#include <ntsp/shared_pointer.h>
+#include <ntsp/weak_pointer.h>
 
 namespace ntsp {
 
 template< typename Value >
 class enable_shared_from_this
 {
-    template< typename V >
-    friend class weak_pointer;
-
-    template< typename V >
-    friend class shared_pointer;
 
 public:
     virtual ~enable_shared_from_this() = default;
@@ -27,6 +23,13 @@ public:
     {
         return weak_pointer< Value >( shared_from_this() );
     }
+
+private:
+    template< typename V >
+    friend class weak_pointer;
+
+    template< typename V >
+    friend class shared_pointer;
 
 private:
     reference_counter * m_reference_counter = nullptr;

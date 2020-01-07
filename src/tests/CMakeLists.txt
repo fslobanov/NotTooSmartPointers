@@ -9,9 +9,9 @@ include_directories( ${GTEST_INCLUDE_DIR} )
 add_executable(
 	${TARGET_NAME} main.cpp
 
-	shared_ptr_test.cpp
+	shared_ptr.cpp
 	weak_ptr_test.cpp
-	enable_shared_from_this_test.cpp
+	enable_shared_from_this.cpp
 )
 
 add_dependencies( ${TARGET_NAME} ntsp )

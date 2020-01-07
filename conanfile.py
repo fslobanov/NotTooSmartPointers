@@ -15,10 +15,14 @@ class NtspConan(ConanFile):
     default_options = {"shared": False}
     generators = "cmake"
 
+    def source(self):
+        self.run("git clone https://github.com/fslobanov/NotTooSmartPointers")
+
     def build(self):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
+        cmake.test()
 
     def package(self):
         self.copy("*.h", src="include", dst="include", keep_path=True)
