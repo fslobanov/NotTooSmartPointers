@@ -1,5 +1,5 @@
 set( TARGET_NAME "ntsp" )
-add_library( ${TARGET_NAME} STATIC )
+add_library( ${TARGET_NAME} STATIC  )
 
 set( INCLUDE_DIR "${NotTooSmartPointers_SOURCE_DIR}/include" )
 set( HEADERS_DIR "${INCLUDE_DIR}/ntsp" )
@@ -8,6 +8,7 @@ target_include_directories( ${TARGET_NAME} PUBLIC ${INCLUDE_DIR} )
 target_sources( ${TARGET_NAME}
 		PUBLIC
 
+		"${HEADERS_DIR}/types.h"
 		"${HEADERS_DIR}/traits.h"
 		"${HEADERS_DIR}/reference_counter.h"
 		"${HEADERS_DIR}/shared_pointer.h"

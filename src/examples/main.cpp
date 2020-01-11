@@ -69,6 +69,10 @@ int main()
 
             std::clog << "#### " << s2->value << " , " << w1.lock()->value << std::endl;
         }
+
+        {
+            make_shared< double >( 666 );
+        }
     }
 
     return 0;
