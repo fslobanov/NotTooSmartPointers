@@ -4,8 +4,68 @@
 
 #include <ntsp/traits.h>
 #include <ntsp/reference_counter.h>
+#include <memory>
 
 namespace ntsp {
+namespace detail {
+
+template< size_t Index, typename... Args >
+constexpr decltype( auto ) magic_get_tuple( Args && ... args ) noexcept
+{
+    return std::get< Index >( std::forward_as_tuple( std::forward< Args >( args )... ) );
+}
+
+template< std::size_t N, typename FirstType, typename... Args, std::enable_if_t< N == 0, int >... >
+constexpr decltype( auto ) magic_get( FirstType && first, Args && ... as ) noexcept
+{
+    return std::forward< FirstType >( first );
+}
+
+template< std::size_t N, typename FirstType, typename... Args, std::enable_if_t< N != 0, int >... >
+constexpr decltype( auto ) magic_get( FirstType && first, Args && ... as ) noexcept
+{
+    return magic_get< N - 1 >( std::forward< Args >( as )... );
+}
+
+
+template< typename ... Args >
+constexpr thread_policy_e get_policy( Args && ... args )
+{
+    if constexpr ( sizeof ... ( args ) > 0 )
+    {
+        const auto first_value = detail::magic_get< 0 >( std::forward<Args>( args )... );
+        if constexpr ( std::is_same_v< thread_policy_e, decltype( first_value ) > )
+        {
+            return first_value;
+        }
+        else
+        {
+            return thread_policy_e::safe;
+        }
+    }
+    else
+    {
+        return thread_policy_e::safe;
+    }
+}
+
+/*template<typename T>
+concept has_type_member = requires { typename T::type; };
+template<typename T>
+concept has_bool_value_member = requires { { T::value } -> std::convertible_to<bool>; };*/
+
+}
+
+template< typename T >
+struct shared_pointer_config
+{
+    virtual ~shared_pointer_config() = default;
+
+    constexpr static thread_policy_e thread_policy =  thread_policy_e::safe;
+
+    using deleter = std::default_delete< T >;
+    using allocator = std::allocator< T >;
+};
 
 template< typename Value, thread_policy_e Policy = thread_policy_e::safe >
 class shared_pointer final
@@ -17,7 +77,7 @@ public:
 
 public:
     template< typename ... Args >
-    static shared_pointer< value_type > make( Args && ... args )
+    static decltype( auto ) make( Args && ... args )
     {
         constexpr static auto memory_size = sizeof( reference_counter< thread_policy > ) + sizeof( value_type );
         const auto memory = static_cast< char * >( std::malloc( memory_size ) );
@@ -28,7 +88,7 @@ public:
 
         const auto counter = new( memory ) reference_counter< thread_policy >( true );
         const auto value = new( memory + sizeof( reference_counter< thread_policy > ) ) value_type( std::forward< Args ... >( args ... ) );
-        return shared_pointer< value_type >( counter, value );
+        return shared_pointer< value_type, thread_policy >( counter, value );
     }
 
 public:
@@ -158,8 +218,8 @@ private:
 
     friend class enable_shared_from_this< value_type, thread_policy >;
 
-    template< typename V, thread_policy_e P,  typename ... Args >
-    friend shared_pointer< V, P > make_shared( Args && ... args );
+    template< typename V, typename ... Args >
+    friend decltype( auto ) make_shared( Args && ... args );
 
 private:
     reference_counter< thread_policy > * m_reference_counter;
@@ -220,10 +280,16 @@ private:
     }
 };
 
-template< typename Value, thread_policy_e Policy = thread_policy_e::safe, typename... Args >
-shared_pointer< Value > make_shared( Args && ... args )
+template< typename Value, typename... Args >
+decltype( auto ) make_shared( Args && ... args )
 {
-    return shared_pointer< Value, Policy >::make( std::forward< Args ... >( args ... ) );
+    //constexpr std::tuple t = { std::is_same< thread_policy_e, Args>::value ... };
+    //constexpr auto policy = get_policy(  std::forward< Args >( args ) ... );
+
+    constexpr auto tuple = std::make_tuple( thread_policy_e::safe );
+    constexpr auto policy = std::get< 0 >( tuple );
+
+    return shared_pointer< Value, policy >::make( std::forward< Args ... >( args ... ) );
 }
 
 }

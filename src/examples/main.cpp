@@ -71,7 +71,7 @@ int main()
         }
 
         {
-            make_shared< double >( 666 );
+            shared_pointer< int, thread_policy_e::safe >( new int( 42 ) );
         }
     }
 

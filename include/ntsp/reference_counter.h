@@ -21,8 +21,8 @@ class shared_pointer;
 template< typename Value, thread_policy_e Policy  >
 class enable_shared_from_this;
 
-template< typename Value, thread_policy_e Policy, typename ... Args >
-shared_pointer< Value, Policy > make_shared( Args && ... args );
+template< typename Value, typename ... Args >
+decltype( auto ) make_shared( Args && ... args );
 
 
 namespace detail {
@@ -134,8 +134,8 @@ private:
     template< typename V, thread_policy_e P >
     friend class enable_shared_from_this;
 
-    template< typename V, thread_policy_e P, typename ... Args >
-    friend shared_pointer< V, P > make_shared( Args && ... args );
+    template< typename V, typename ... Args >
+    friend decltype( auto ) make_shared( Args && ... args );
 
 private:
     counter m_strong;

@@ -92,7 +92,7 @@ public:
         return m_reference_counter->test_strong() == reference_counter< thread_policy >::state_e::empty;
     }
 
-    shared_pointer< value_type > lock() noexcept
+    shared_pointer< value_type, thread_policy > lock() noexcept
     {
         if( m_reference_counter->test_strong() == reference_counter< thread_policy >::state_e::empty )
         {
