@@ -27,13 +27,12 @@ constexpr decltype( auto ) magic_get( FirstType && first, Args && ... as ) noexc
     return magic_get< N - 1 >( std::forward< Args >( as )... );
 }
 
-
 template< typename ... Args >
 constexpr thread_policy_e get_policy( Args && ... args )
 {
     if constexpr ( sizeof ... ( args ) > 0 )
     {
-        const auto first_value = detail::magic_get< 0 >( std::forward<Args>( args )... );
+        const auto first_value = detail::magic_get< 0 >( std::forward< Args >( args )... );
         if constexpr ( std::is_same_v< thread_policy_e, decltype( first_value ) > )
         {
             return first_value;
@@ -48,23 +47,28 @@ constexpr thread_policy_e get_policy( Args && ... args )
         return thread_policy_e::safe;
     }
 }
-
-/*template<typename T>
-concept has_type_member = requires { typename T::type; };
-template<typename T>
-concept has_bool_value_member = requires { { T::value } -> std::convertible_to<bool>; };*/
-
 }
 
 template< typename T >
-struct shared_pointer_config
+struct shared_pointer_default_config final
 {
-    virtual ~shared_pointer_config() = default;
+    using value_type = T;
+    using deleter = std::default_delete< value_type >;
+    using allocator = std::allocator< value_type >;
+    constexpr static thread_policy_e thread_policy = thread_policy_e::safe;
+};
 
-    constexpr static thread_policy_e thread_policy =  thread_policy_e::safe;
+template< class From, class To >
+concept convertible_to = std::is_convertible_v< From, To > &&
+                         requires( From from ) {
+                             static_cast< To >( from );
+                         };
 
-    using deleter = std::default_delete< T >;
-    using allocator = std::allocator< T >;
+template< typename SharedPointerConfig >
+concept shared_pointer_config =
+requires {
+    typename SharedPointerConfig::value_type;
+    SharedPointerConfig::thread_policy -> convertible_to< thread_policy_e >;
 };
 
 template< typename Value, thread_policy_e Policy = thread_policy_e::safe >
@@ -79,46 +83,48 @@ public:
     template< typename ... Args >
     static decltype( auto ) make( Args && ... args )
     {
-        constexpr static auto memory_size = sizeof( reference_counter< thread_policy > ) + sizeof( value_type );
-        const auto memory = static_cast< char * >( std::malloc( memory_size ) );
-        if( !memory )
+        constexpr static std::size_t reference_counter_size = sizeof( std::aligned_storage_t< sizeof( reference_counter_t ), alignof( reference_counter_t ) > );
+        constexpr static std::size_t storage_size = sizeof( std::aligned_storage_t< sizeof( value_type ), alignof( value_type ) > );
+
+        const auto memory = static_cast< char * >( std::malloc( reference_counter_size + storage_size ) );
+        if( ! memory )
         {
             throw std::bad_alloc();
         }
 
-        const auto counter = new( memory ) reference_counter< thread_policy >( true );
-        const auto value = new( memory + sizeof( reference_counter< thread_policy > ) ) value_type( std::forward< Args ... >( args ... ) );
+        const auto counter = new( memory ) reference_counter_t( true );
+        const auto value = new( memory + reference_counter_size ) value_type( std::forward< Args ... >( args ... ) );
         return shared_pointer< value_type, thread_policy >( counter, value );
     }
 
 public:
     shared_pointer()
-            : m_reference_counter( new reference_counter< thread_policy >( false ) )
-            , m_value( nullptr )
+            : m_reference_counter( new reference_counter_t( false ) )
+            , m_storage( nullptr )
     {
-        process_shared_from_this( shared_pointer::m_value, this );
+        process_shared_from_this( shared_pointer::m_storage, this );
     }
 
     explicit shared_pointer( value_type * value )
-            : m_reference_counter( new reference_counter< thread_policy >( false ) )
-            , m_value( value )
+            : m_reference_counter( new reference_counter_t( false ) )
+            , m_storage( reinterpret_cast< storage_t * >( value ) )
     {
         m_reference_counter->add_strong();
     }
 
     ~shared_pointer()
     {
-        if( !m_reference_counter )
+        if( ! m_reference_counter )
         {
             return;
         }
 
-        delete_counter_and_value();
+        delete_counter_and_storage();
     }
 
     shared_pointer( const shared_pointer & other )
             : m_reference_counter( other.m_reference_counter )
-            , m_value( other.m_value )
+            , m_storage( other.m_storage )
     {
         if( m_reference_counter )
         {
@@ -133,23 +139,23 @@ public:
             return *this;
         }
 
-        delete_counter_and_value();
+        delete_counter_and_storage();
 
         m_reference_counter = other.m_reference_counter;
         if( m_reference_counter )
         {
             m_reference_counter->add_strong();
         }
-        m_value = other.m_value;
+        m_storage = other.m_storage;
         return *this;
     }
 
     shared_pointer( shared_pointer && other ) noexcept
             : m_reference_counter( other.m_reference_counter )
-            , m_value( other.m_value )
+            , m_storage( other.m_storage )
     {
         other.m_reference_counter = nullptr;
-        other.m_value = nullptr;
+        other.m_storage = nullptr;
     }
 
     shared_pointer & operator =( shared_pointer && other ) noexcept
@@ -159,56 +165,56 @@ public:
             return *this;
         }
 
-        delete_counter_and_value();
+        delete_counter_and_storage();
 
         m_reference_counter = other.m_reference_counter;
-        m_value = other.m_value;
+        m_storage = other.m_storage;
 
         other.m_reference_counter = nullptr;
-        other.m_value = nullptr;
+        other.m_storage = nullptr;
 
         return *this;
     }
 
 public:
-    [[ nodiscard ]] value_type * get() const noexcept
+    [[nodiscard]] inline value_type * get() const noexcept
     {
-        return m_value;
+        return reinterpret_cast< value_type * >( m_storage );
     }
 
-    [[ nodiscard ]] bool empty() const noexcept
+    [[nodiscard]] inline bool empty() const noexcept
     {
-        return nullptr == m_value;
+        return nullptr == m_storage;
     }
 
-    explicit operator bool() const noexcept
+    explicit inline operator bool() const noexcept
     {
         return empty();
     }
 
-    value_type * operator ->() noexcept
+    inline value_type * operator ->() const noexcept
     {
-        return m_value;
+        return get();
     }
 
-    value_type & operator *() noexcept
+    inline value_type & operator *() const noexcept
     {
-        assert( m_value && "value_type == nullptr" );
-        return *m_value;
+        assert( m_storage && "value_type == nullptr" );
+        return *get();
     }
 
 public:
-    [[ nodiscard ]] bool operator ==( const shared_pointer & rhs ) const noexcept
+    [[nodiscard]] bool operator ==( const shared_pointer & rhs ) const noexcept
     {
         return m_reference_counter == rhs.m_reference_counter;
     }
 
-    [[ nodiscard ]] bool operator !=( const shared_pointer & rhs ) const noexcept
+    [[nodiscard]] bool operator !=( const shared_pointer & rhs ) const noexcept
     {
-        return !( rhs == *this );
+        return ! ( rhs == *this );
     }
 
-    [[ nodiscard ]] bool operator <( const shared_pointer & rhs ) const noexcept
+    [[nodiscard]] bool operator <( const shared_pointer & rhs ) const noexcept
     {
         return m_reference_counter < rhs.m_reference_counter;
     }
@@ -222,38 +228,41 @@ private:
     friend decltype( auto ) make_shared( Args && ... args );
 
 private:
-    reference_counter< thread_policy > * m_reference_counter;
-    value_type * m_value;
+    using reference_counter_t = reference_counter< thread_policy >;
+    reference_counter_t * m_reference_counter;
+
+    using storage_t = std::aligned_storage_t< sizeof( value_type ), alignof( value_type ) >;
+    storage_t * m_storage;
 
 private:
-    explicit shared_pointer( reference_counter< thread_policy > * reference_counter, value_type * value ) noexcept
+    explicit shared_pointer( reference_counter_t * reference_counter, value_type * value ) noexcept
             : m_reference_counter( reference_counter )
-            , m_value( value )
+            , m_storage( reinterpret_cast< storage_t * >( value ) )
     {
         m_reference_counter->add_strong();
-        process_shared_from_this( m_value, this );
+        process_shared_from_this( get(), this );
     }
 
 private:
-    void delete_counter_and_value()
+    void delete_counter_and_storage()
     {
         assert( m_reference_counter && "Already moved" );
-        if( m_reference_counter->remove_and_test_strong_empty() == reference_counter< thread_policy >::state_e::non_empty )
+        if( m_reference_counter->remove_and_test_strong_empty() == reference_counter_t::state_e::non_empty )
         {
             return;
         }
 
         if( m_reference_counter->is_monotonic_allocated() )
         {
-            m_value->~Value();
+            get()->~value_type();
         }
         else
         {
-            delete m_value;
+            delete m_storage;
         }
-        m_value = nullptr;
+        m_storage = nullptr;
 
-        if( m_reference_counter->test_weak() == reference_counter< thread_policy >::state_e::non_empty )
+        if( m_reference_counter->test_weak() == reference_counter_t::state_e::non_empty )
         {
             return;
         }
@@ -280,16 +289,16 @@ private:
     }
 };
 
-template< typename Value, typename... Args >
+template< typename Value, thread_policy_e Policy, typename ... Args >
 decltype( auto ) make_shared( Args && ... args )
 {
-    //constexpr std::tuple t = { std::is_same< thread_policy_e, Args>::value ... };
-    //constexpr auto policy = get_policy(  std::forward< Args >( args ) ... );
+    return shared_pointer< Value, Policy >::make( std::forward< Args ... >( args ... ) );
+}
 
-    constexpr auto tuple = std::make_tuple( thread_policy_e::safe );
-    constexpr auto policy = std::get< 0 >( tuple );
-
-    return shared_pointer< Value, policy >::make( std::forward< Args ... >( args ... ) );
+template< typename Value, typename ... Args >
+decltype( auto ) make_shared( Args && ... args )
+{
+    return make_shared< Value, thread_policy_e::safe >( std::forward< Args ... >( args ... ) );
 }
 
 }

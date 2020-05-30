@@ -22,7 +22,7 @@ public:
 
     explicit weak_pointer( const shared_pointer< value_type, thread_policy > & shared ) noexcept
             : m_reference_counter( shared.m_reference_counter )
-            , m_value( shared.m_value )
+            , m_value( shared.get() )
     {
         assert( m_reference_counter && "Shared was already moved" );
         m_reference_counter->add_weak();
@@ -45,7 +45,7 @@ public:
             return *this;
         }
 
-        delete_counter();
+        delete_reference_counter();
 
         m_reference_counter = other.m_reference_counter;
         if( m_reference_counter )
@@ -71,7 +71,7 @@ public:
             return *this;
         }
 
-        delete_counter();
+        delete_reference_counter();
 
         m_reference_counter = other.m_reference_counter;
         m_value = other.m_value;
@@ -84,7 +84,7 @@ public:
 
     ~weak_pointer()
     {
-        delete_counter();
+        delete_reference_counter();
     }
 
     [[ nodiscard ]] bool expired() const noexcept
@@ -110,7 +110,7 @@ private:
     value_type * m_value;
 
 private:
-    void delete_counter()
+    void delete_reference_counter()
     {
         if( !m_reference_counter )
         {

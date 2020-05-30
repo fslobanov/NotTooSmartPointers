@@ -6,9 +6,17 @@
 
 int main()
 {
+    using namespace ntsp;
+
+    std::clog << "#### " << sizeof( reference_counter< thread_policy_e::safe > )
+              << " , " << sizeof( reference_counter< thread_policy_e::unsafe > ) << std::endl;
+
+    std::clog << "#### " << sizeof( detail::reference_counter_thread_guard< thread_policy_e::safe > )
+              << " , " << sizeof( detail::reference_counter_thread_guard< thread_policy_e::unsafe > ) << std::endl;
+
     for( auto index = 0; index < 1; ++index )
     {
-        using namespace ntsp;
+
 
         {
             auto s1 = shared_pointer< uint64_t >::make( 42 );
